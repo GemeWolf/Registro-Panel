@@ -4,11 +4,13 @@ import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { Dashboard } from './pages/Dashboard';
 import { AuthLayout } from './components/AuthLayout';
+import { ProductProvider } from "./contexts/ProductContext.tsx";
 
 function App() {
   return (
     <>
       <Router>
+        <ProductProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -22,6 +24,7 @@ function App() {
           />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
+        </ProductProvider>
       </Router>
       <Toaster position="top-right" />
     </>

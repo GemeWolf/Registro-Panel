@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -5,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 import { Product } from '../types';
 import { Trash2 } from 'lucide-react';
+import { useProductContext } from '../contexts/ProductContext';
 
 const productSchema = z.object({
   id: z.string().min(1, 'Product ID is required'),
@@ -24,14 +26,27 @@ interface ProductFormProps {
 }
 
 export function ProductForm({ existingProduct, onSuccess }: ProductFormProps) {
+  const { foundProduct, setFoundProduct } = useProductContext();
+
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
-    defaultValues: existingProduct,
+    defaultValues: foundProduct || {},
   });
+
+  // Set form values when foundProduct changes
+  useEffect(() => {
+    if (foundProduct) {
+      Object.entries(foundProduct).forEach(([key, value]) => {
+        setValue(key as keyof ProductFormData, value);
+      });
+    }
+  }, [foundProduct, setValue]);
+
 
   const handleDelete = async () => {
     if (!existingProduct) return;
@@ -40,14 +55,16 @@ export function ProductForm({ existingProduct, onSuccess }: ProductFormProps) {
 
     try {
       const { error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', existingProduct.id);
+          .from('products')
+          .delete()
+          .eq('id', existingProduct.id);
 
       if (error) throw error;
 
       toast.success('Product deleted successfully');
+      setFoundProduct(null);
       onSuccess();
+      window.location.reload(); // Refresh the page to clear the fields
     } catch (error) {
       console.error('Error deleting product:', error);
       toast.error('Error deleting product');
@@ -71,32 +88,32 @@ export function ProductForm({ existingProduct, onSuccess }: ProductFormProps) {
         const filePath = `${fileName}`;
 
         const { error: uploadError, data: uploadData } = await supabase.storage
-          .from('products')
-          .upload(filePath, file);
+            .from('products')
+            .upload(filePath, file);
 
         if (uploadError) {
           throw uploadError;
         }
 
         const { data: { publicUrl } } = supabase.storage
-          .from('products')
-          .getPublicUrl(filePath);
+            .from('products')
+            .getPublicUrl(filePath);
 
         imageUrl = publicUrl;
       }
 
       const { error } = await supabase
-        .from('products')
-        .upsert({
-          id: data.id,
-          name: data.name,
-          description: data.description,
-          price: data.price,
-          category: data.category,
-          stock: data.stock,
-          image_url: imageUrl,
-          user_id: session.user.id,
-        });
+          .from('products')
+          .upsert({
+            id: data.id,
+            name: data.name,
+            description: data.description,
+            price: data.price,
+            category: data.category,
+            stock: data.stock,
+            image_url: imageUrl,
+            user_id: session.user.id,
+          });
 
       if (error) throw error;
 
@@ -109,141 +126,141 @@ export function ProductForm({ existingProduct, onSuccess }: ProductFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label htmlFor="id" className="block text-sm font-medium text-gray-700">
-            Product ID
-          </label>
-          <input
-            type="text"
-            id="id"
-            {...register('id')}
-            disabled={!!existingProduct}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          />
-          {errors.id && (
-            <p className="mt-1 text-sm text-red-600">{errors.id.message}</p>
-          )}
-        </div>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label htmlFor="id" className="block text-sm font-medium text-gray-700">
+              Product ID
+            </label>
+            <input
+                type="text"
+                id="id"
+                {...register('id')}
+                disabled={!!foundProduct}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+            {errors.id && (
+                <p className="mt-1 text-sm text-red-600">{errors.id.message}</p>
+            )}
+          </div>
 
-        <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-            Product Name
-          </label>
-          <input
-            type="text"
-            id="name"
-            {...register('name')}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          />
-          {errors.name && (
-            <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
-          )}
-        </div>
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+              Product Name
+            </label>
+            <input
+                type="text"
+                id="name"
+                {...register('name')}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+            {errors.name && (
+                <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+            )}
+          </div>
 
-        <div className="col-span-2">
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-            Description
-          </label>
-          <textarea
-            id="description"
-            rows={3}
-            {...register('description')}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          />
-          {errors.description && (
-            <p className="mt-1 text-sm text-red-600">{errors.description.message}</p>
-          )}
-        </div>
+          <div className="col-span-2">
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+              Description
+            </label>
+            <textarea
+                id="description"
+                rows={3}
+                {...register('description')}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+            {errors.description && (
+                <p className="mt-1 text-sm text-red-600">{errors.description.message}</p>
+            )}
+          </div>
 
-        <div>
-          <label htmlFor="price" className="block text-sm font-medium text-gray-700">
-            Price
-          </label>
-          <input
-            type="number"
-            id="price"
-            step="0.01"
-            {...register('price', { valueAsNumber: true })}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          />
-          {errors.price && (
-            <p className="mt-1 text-sm text-red-600">{errors.price.message}</p>
-          )}
-        </div>
+          <div>
+            <label htmlFor="price" className="block text-sm font-medium text-gray-700">
+              Price
+            </label>
+            <input
+                type="number"
+                id="price"
+                step="0.01"
+                {...register('price', { valueAsNumber: true })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+            {errors.price && (
+                <p className="mt-1 text-sm text-red-600">{errors.price.message}</p>
+            )}
+          </div>
 
-        <div>
-          <label htmlFor="category" className="block text-sm font-medium text-gray-700">
-            Category
-          </label>
-          <input
-            type="text"
-            id="category"
-            {...register('category')}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          />
-          {errors.category && (
-            <p className="mt-1 text-sm text-red-600">{errors.category.message}</p>
-          )}
-        </div>
+          <div>
+            <label htmlFor="category" className="block text-sm font-medium text-gray-700">
+              Category
+            </label>
+            <input
+                type="text"
+                id="category"
+                {...register('category')}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+            {errors.category && (
+                <p className="mt-1 text-sm text-red-600">{errors.category.message}</p>
+            )}
+          </div>
 
-        <div>
-          <label htmlFor="stock" className="block text-sm font-medium text-gray-700">
-            Stock
-          </label>
-          <input
-            type="number"
-            id="stock"
-            {...register('stock', { valueAsNumber: true })}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          />
-          {errors.stock && (
-            <p className="mt-1 text-sm text-red-600">{errors.stock.message}</p>
-          )}
-        </div>
+          <div>
+            <label htmlFor="stock" className="block text-sm font-medium text-gray-700">
+              Stock
+            </label>
+            <input
+                type="number"
+                id="stock"
+                {...register('stock', { valueAsNumber: true })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            />
+            {errors.stock && (
+                <p className="mt-1 text-sm text-red-600">{errors.stock.message}</p>
+            )}
+          </div>
 
-        <div>
-          <label htmlFor="image" className="block text-sm font-medium text-gray-700">
-            Product Image
-          </label>
-          <input
-            type="file"
-            id="image"
-            accept="image/*"
-            {...register('image')}
-            className="mt-1 block w-full text-sm text-gray-500
+          <div>
+            <label htmlFor="image" className="block text-sm font-medium text-gray-700">
+              Product Image
+            </label>
+            <input
+                type="file"
+                id="image"
+                accept="image/*"
+                {...register('image')}
+                className="mt-1 block w-full text-sm text-gray-500
               file:mr-4 file:py-2 file:px-4
               file:rounded-md file:border-0
               file:text-sm file:font-semibold
               file:bg-indigo-50 file:text-indigo-700
               hover:file:bg-indigo-100"
-          />
-          {errors.image && (
-            <p className="mt-1 text-sm text-red-600">{errors.image.message}</p>
-          )}
+            />
+            {errors.image && (
+                <p className="mt-1 text-sm text-red-600">{errors.image.message}</p>
+            )}
+          </div>
         </div>
-      </div>
 
-      <div className="flex justify-end space-x-4">
-        {existingProduct && (
+        <div className="flex justify-end space-x-4">
+          {existingProduct && (
+              <button
+                  type="button"
+                  onClick={handleDelete}
+                  className="inline-flex items-center justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Product
+              </button>
+          )}
           <button
-            type="button"
-            onClick={handleDelete}
-            className="inline-flex items-center justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              type="submit"
+              disabled={isSubmitting}
+              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Delete Product
+            {isSubmitting ? 'Saving...' : existingProduct ? 'Update Product' : 'Create Product'}
           </button>
-        )}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-        >
-          {isSubmitting ? 'Saving...' : existingProduct ? 'Update Product' : 'Create Product'}
-        </button>
-      </div>
-    </form>
+        </div>
+      </form>
   );
 }
